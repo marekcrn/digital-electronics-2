@@ -15,6 +15,7 @@
 #define LED_RED PB0   // PB5 is AVR pin where green on-board LED  
                         // is connected
 #define SHORT_DELAY 250 // Delay in milliseconds
+#define LONG_DELAY 1000 // Delay in milliseconds
 #ifndef F_CPU
 # define F_CPU 16000000 // CPU frequency in Hz required for delay funcs
 #endif
