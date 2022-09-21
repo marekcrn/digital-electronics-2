@@ -59,6 +59,43 @@ int main(void)
 
         // Pause several milliseconds
         _delay_ms(SHORT_DELAY);
+
+        // Turn ON/OFF on-board LED
+        digitalWrite(LED_GREEN, led_value);
+        digitalWrite(LED_RED, led_value);
+
+        if (led_value == LOW)
+            led_value = HIGH;
+        else
+            led_value = LOW;
+
+        // Pause several milliseconds
+        _delay_ms(SHORT_DELAY);
+        
+        // Turn ON/OFF on-board LED
+        digitalWrite(LED_GREEN, led_value);
+        digitalWrite(LED_RED, led_value);
+
+        if (led_value == LOW)
+            led_value = HIGH;
+        else
+            led_value = LOW;
+
+        // Pause several milliseconds
+        _delay_ms(LONG_DELAY);
+        
+        // Turn ON/OFF on-board LED
+        digitalWrite(LED_GREEN, led_value);
+        digitalWrite(LED_RED, led_value);
+
+        if (led_value == LOW)
+            led_value = HIGH;
+        else
+            led_value = LOW;
+
+        // Pause several milliseconds
+        _delay_ms(SHORT_DELAY);
+        
         // Turn ON/OFF on-board LED
         digitalWrite(LED_GREEN, led_value);
         digitalWrite(LED_RED, led_value);
