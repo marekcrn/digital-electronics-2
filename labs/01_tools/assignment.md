@@ -28,8 +28,6 @@ int main(void)
         led_value = LOW; 
         digitalWrite(LED_BLUE, led_value);
          _delay_ms(1000);
- 
-
     }
 
     // Will never reach this
