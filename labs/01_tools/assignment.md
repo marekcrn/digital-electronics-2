@@ -7,63 +7,29 @@
 ```c
 int main(void)
 {
-    uint8_t led_value = LOW;  // Local variable to keep LED status
+  uint8_t led_value = LOW; 
 
     // Set pin where on-board LED is connected as output
-    pinMode(LED_GREEN, OUTPUT);
-    pinMode(LED_RED, OUTPUT);
+  pinMode(LED_BLUE, OUTPUT);
 
     // Infinite loop
-    while (1)
+  while (1)
     {
-        // Change LED value
-        if (led_value == LOW)
-            led_value = HIGH;
-        else
-            led_value = LOW;
+      // Generate a lettre `A` Morse code
+        led_value = HIGH; 
+        digitalWrite(LED_BLUE, led_value);
+         _delay_ms(250);
+        led_value = LOW;
+        digitalWrite(LED_BLUE, led_value);
+         _delay_ms(500);
+        led_value = HIGH;
+        digitalWrite(LED_BLUE, led_value);
+         _delay_ms(250);
+        led_value = LOW; 
+        digitalWrite(LED_BLUE, led_value);
+         _delay_ms(1000);
+ 
 
-        // Pause several milliseconds
-        _delay_ms(SHORT_DELAY);
-
-        // Turn ON/OFF on-board LED
-        digitalWrite(LED_GREEN, led_value);
-        digitalWrite(LED_RED, led_value);
-
-        if (led_value == LOW)
-            led_value = HIGH;
-        else
-            led_value = LOW;
-
-        // Pause several milliseconds
-        _delay_ms(SHORT_DELAY);
-        
-        // Turn ON/OFF on-board LED
-        digitalWrite(LED_GREEN, led_value);
-        digitalWrite(LED_RED, led_value);
-
-        if (led_value == LOW)
-            led_value = HIGH;
-        else
-            led_value = LOW;
-
-        // Pause several milliseconds
-        _delay_ms(LONG_DELAY);
-        
-        // Turn ON/OFF on-board LED
-        digitalWrite(LED_GREEN, led_value);
-        digitalWrite(LED_RED, led_value);
-
-        if (led_value == LOW)
-            led_value = HIGH;
-        else
-            led_value = LOW;
-
-        // Pause several milliseconds
-        _delay_ms(SHORT_DELAY);
-        
-        // Turn ON/OFF on-board LED
-        digitalWrite(LED_GREEN, led_value);
-        digitalWrite(LED_RED, led_value);
     }
 
     // Will never reach this
