@@ -90,12 +90,18 @@ uint8_t GPIO_read(volatile uint8_t *reg, uint8_t pin)
     }
 }
 
-
 /**********************************************************************
  * Function: GPIO_mode_input_nopull()
  **********************************************************************/
-
+void GPIO_mode_input_nopull(volatile uint8_t *reg, uint8_t pin)
+{
+    *reg = *reg | (1<<pin);
+}
 
 /**********************************************************************
  * Function: GPIO_write_toggle()
  **********************************************************************/
+void GPIO_write_toggle(volatile uint8_t *reg, uint8_t pin)
+{
+    *reg ^= *reg | (1<<pin);
+}
