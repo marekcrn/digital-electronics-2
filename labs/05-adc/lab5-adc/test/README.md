@@ -7,22 +7,11 @@
    | **Push button** | **PC0[A0] voltage** | **ADC value (calculated)** | **ADC value (measured)** | **ADC value (measured, hex)** |
    | :-: | :-: | :-: | :-: | :-: |
    | Right  | 0&nbsp;V | 0   | 0 | 0 |
-   | Up     | 0.495&nbsp;V | 101 |  |  |
-   | Down   | 1.203&nbsp;V | 246 |  |  |
-   | Left   | 1.969&nbsp;V | 402 |  |  |
-   | Select | 3.181&nbsp;V | 651 |  |  |
-   | none   | 5.000&nbsp;V | 1023|  |  |
-
-
-   | **Operation** | **Register(s)** | **Bit(s)** | **Description** |
-   | :-- | :-: | :-: | :-- |
-   | Voltage reference    | ADMUX | REFS1:0 | 00: ..., 01: AVcc voltage reference (5V), ... |
-   | Input channel        | ADMUX | MUX3:0 | 0000: ADC0, 0001: ADC1, ... |
-   | ADC enable           | ADCSRA | | ADEN |  |
-   | Start conversion     | ADCSRA  | ADSC |  |
-   | ADC interrupt enable | ADCSRA  | ADIE |  |
-   | ADC clock prescaler  | ADCSRA  | ADPS2:0 | 000: Division factor 2, 001: 2, 010: 4, ...|
-   | ADC 10-bit result    | ADC and |  |  |
+   | Up     | 0.495&nbsp;V | 101 | 99 | 0x63 |
+   | Down   | 1.203&nbsp;V | 246 | 256 | 0x100 |
+   | Left   | 1.969&nbsp;V | 402 | 409 | 0x199 |
+   | Select | 3.181&nbsp;V | 651 | 639 | 0x27f |
+   | none   | 5.000&nbsp;V | 1023| 1023 | 0x3ff |
 
 ### Temperature meter
 
