@@ -1,4 +1,4 @@
-# Lab 7: INSERT_YOUR_FIRSTNAME INSERT_YOUR_LASTNAME
+# Lab 7: Marek Černý, 230235
 
 ### Arduino Uno pinout
 
@@ -10,13 +10,13 @@
    * SPI pins
    * external interrupt pins INT0, INT1
 
-   ![your figure](images/arduino_uno_pinout.png)
+   ![board.png](board.png)
 
 ### I2C communication
 
 2. Draw a timing diagram of I2C signals when calling function `rtc_read_years()`. Let this function reads one byte-value from RTC DS3231 address `06h` (see RTC datasheet) in the range `00` to `99`. Specify when the SDA line is controlled by the Master device and when by the Slave device. Draw the whole request/receive process, from Start to Stop condition. The image can be drawn on a computer (by [WaveDrom](https://wavedrom.com/) for example) or by hand. Name all parts of timing diagram.
 
-   ![your figure]()
+   ![diagram.png](diagram.png)
 
 ### Meteo station
 
@@ -24,4 +24,4 @@ Consider an application for temperature and humidity measurements. Use sensor DH
 
 3. Draw a flowchart of `TIMER1_OVF_vect` (which overflows every 1&nbsp;sec) for such Meteo station. The image can be drawn on a computer or by hand. Use clear description of individual algorithm steps.
 
-   ![your figure]()
+   ![flowchart.png](flowchart.png)
