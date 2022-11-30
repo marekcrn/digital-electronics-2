@@ -34,7 +34,6 @@
 #include <stdlib.h>         // C library. Needed for number conversions
 
 /* Defines ----------------------------------------------------------*/ 
-/*
 #define VRX PC0 
 #define VRY PC1   
 #define SW PD2 
@@ -52,44 +51,30 @@
 int main(void)
 {
     // Initialize display
-    lcd_init(LCD_DISP_ON_CURSOR_BLINK);
-
-    // Put string(s) on LCD screen
-    //lcd_gotoxy(6, 1);
-    //lcd_puts("LCD Test");
-    //lcd_putc('!');
-
-    // Custom character definition using https://omerk.github.io/lcdchargen/
-    uint8_t customChar[8] = {
-        0b11111,
-        0b11111,
-        0b11111,
-        0b11111,
-        0b11111,
-        0b11111,
-        0b11111,
-        0b11111
-    };
-
-    // Initialize display
     lcd_init(LCD_DISP_ON);
+    lcd_gotoxy(1, 0); lcd_puts("value:");
+    lcd_gotoxy(3, 1); lcd_puts("key:");
+    lcd_gotoxy(8, 0); lcd_puts("a");  // Put ADC value in decimal
+    lcd_gotoxy(13,0); lcd_puts("b");  // Put ADC value in hexadecimal
+    lcd_gotoxy(8, 1); lcd_puts("c");  // Put button name here
 
-    lcd_command(1<<LCD_CGRAM);       // Set addressing to CGRAM (Character Generator RAM)
-                                     // ie to individual lines of character patterns
-    for (uint8_t i = 0; i < 8; i++)  // Copy new character patterns line by line to CGRAM
-        lcd_data(customChar[i]);
-    lcd_command(1<<LCD_DDRAM);       // Set addressing back to DDRAM (Display Data RAM)
-                                     // ie to character codes
+    // Configure Analog-to-Digital Convertion unit
+    // Select ADC voltage reference to "AVcc with external capacitor at AREF pin"
+    ADMUX |= (1<<REFS0);
+    ADMUX &= ~(1<<REFS1);
+    // Select input channel ADC0 (voltage divider pin)
+    ADMUX &= ~((1<<MUX0) | (1<<MUX1) | (1<<MUX2) | (1<<MUX3));
+    // Enable ADC module
+    ADCSRA |= (1<<ADEN);
+    // Enable conversion complete interrupt
+    ADCSRA |= (1<<ADIE);
+    // Set clock prescaler to 128
+    ADCSRA |= ((1<<ADPS0) | (1<<ADPS1) | (1<<ADPS2));
 
-    // Display symbol with Character code 0
-    lcd_gotoxy(15, 1);
-    lcd_putc(0x00);
-
-    // Configuration of 8-bit Timer/Counter2 for Stopwatch update
-    // Set the overflow prescaler to 16 ms and enable interrupt
-
-    TIM2_overflow_16ms();
-    TIM2_overflow_interrupt_enable();
+    // Configure 16-bit Timer/Counter1 to start ADC conversion
+    // Set prescaler to 33 ms and enable overflow interrupt
+    TIM1_overflow_33ms();
+    TIM1_overflow_interrupt_enable();
 
     // Enables interrupts by setting the global interrupt mask
     sei();
@@ -98,7 +83,7 @@ int main(void)
     while (1)
     {
         /* Empty loop. All subsequent operations are performed exclusively 
-         * inside interrupt service routines, ISRs */
+         * inside interrupt service routines ISRs */
     }
 
     // Will never reach this
@@ -108,197 +93,80 @@ int main(void)
 
 /* Interrupt service routines ----------------------------------------*/
 /**********************************************************************
- * Function: Timer/Counter2 overflow interrupt
- * Purpose:  Update the stopwatch on LCD screen every sixth overflow,
- *           ie approximately every 100 ms (6 x 16 ms = 100 ms).
+ * Function: Timer/Counter1 overflow interrupt
+ * Purpose:  Use single conversion mode and start conversion every 100 ms.
  **********************************************************************/
-ISR(TIMER2_OVF_vect)
+ISR(TIMER1_OVF_vect)
 {
-    static uint8_t no_of_overflows = 0;
-    static uint8_t tenths = 0;  // Tenths of a second
-    static uint8_t seconds = 0;
-    static uint8_t minutes = 0;
-    static uint8_t squareroot = 0;
-    char string[4];             // String for converted numbers by itoa()
+    // Start ADC conversion
+    ADCSRA |= (1<<ADSC);
+}
 
-    no_of_overflows++;
-    if (no_of_overflows >= 6)
+/**********************************************************************
+ * Function: ADC complete interrupt
+ * Purpose:  Display converted value on LCD screen.
+ **********************************************************************/
+ISR(ADC_vect)
+{
+    uint16_t value;
+    char string[4];  // String for converted numbers by itoa()
+
+    // Read converted value
+    // Note that, register pair ADCH and ADCL can be read as a 16-bit value ADC
+    value = ADC;
+    // Convert "value" to "string" and display it
+    itoa(value, string, 10);
+    lcd_gotoxy(8, 0);
+    lcd_puts("      ");
+    lcd_gotoxy(8, 0);
+    lcd_puts(string);
+
+    itoa(value, string, 16);
+    lcd_gotoxy(13, 0);
+    lcd_puts("      ");
+    lcd_gotoxy(13, 0);
+    lcd_puts(string);
+
+    if ((value == 0x3ff) | (value == 0x3fe))
     {
-        // Do this every 6 x 16 ms = 100 ms
-        no_of_overflows = 0;
-        tenths++;
-
-// Count tenth of seconds 0, 1, ..., 9, 0, 1, ...
-
-        if (tenths > 10)
-        {
-            tenths = 0;
-            seconds++;
-
-            if (seconds > 59)
-            {
-                seconds = 0;
-                minutes++; 
-
-                if (minutes > 59)
-                {
-                    minutes = 0;        
-                }          
-            }
-        }
-
-        squareroot = seconds * seconds;
-
-        itoa(minutes, string, 10);  // Convert decimal value to string
-        lcd_gotoxy(1, 0);
-        lcd_puts(string);
-
-        lcd_puts(":");
-
-        itoa(seconds, string, 10);  // Convert decimal value to string
-        lcd_puts(string);
-        lcd_puts(".");
-
-        itoa(tenths, string, 10);  // Convert decimal value to string
-        lcd_puts(string);
-
-        itoa(squareroot, string, 10);
-        lcd_gotoxy(11, 0);
-        lcd_puts(string);
-
-        if (tenths == 0)
-        {
-            lcd_gotoxy(1, 1);
-            lcd_puts(" ");
-            lcd_puts(" ");
-            lcd_puts(" ");
-            lcd_puts(" ");
-            lcd_puts(" ");
-            lcd_puts(" ");
-            lcd_puts(" ");
-            lcd_puts(" ");
-            lcd_puts(" ");
-        }
-        else if (tenths == 1)
-        {
-            lcd_gotoxy(1, 1);
-            lcd_putc(0x00);
-            lcd_puts(" ");
-            lcd_puts(" ");
-            lcd_puts(" ");
-            lcd_puts(" ");
-            lcd_puts(" ");
-            lcd_puts(" ");
-            lcd_puts(" ");
-            lcd_puts(" ");
-        }
-        else if (tenths == 2)
-        {   
-            lcd_gotoxy(1, 1);
-            lcd_putc(0x00);
-            lcd_putc(0x00);
-            lcd_puts(" ");
-            lcd_puts(" ");
-            lcd_puts(" ");
-            lcd_puts(" ");
-            lcd_puts(" ");
-            lcd_puts(" ");
-            lcd_puts(" ");
-        }  
-        else if (tenths == 3)
-        {   
-            lcd_gotoxy(1, 1);
-            lcd_putc(0x00);
-            lcd_putc(0x00);
-            lcd_putc(0x00);
-            lcd_puts(" ");
-            lcd_puts(" ");
-            lcd_puts(" ");
-            lcd_puts(" ");
-            lcd_puts(" ");
-            lcd_puts(" ");
-        }    
-        else if (tenths == 4)
-        {   
-            lcd_gotoxy(1, 1);
-            lcd_putc(0x00);
-            lcd_putc(0x00);
-            lcd_putc(0x00);
-            lcd_putc(0x00);
-            lcd_puts(" ");
-            lcd_puts(" ");
-            lcd_puts(" ");
-            lcd_puts(" ");
-            lcd_puts(" ");
-        }    
-        else if (tenths == 5)
-        {   
-            lcd_gotoxy(1, 1);
-            lcd_putc(0x00);
-            lcd_putc(0x00);
-            lcd_putc(0x00);
-            lcd_putc(0x00);
-            lcd_putc(0x00);
-            lcd_puts(" ");
-            lcd_puts(" ");
-            lcd_puts(" ");
-            lcd_puts(" ");
-        }  
-        else if (tenths == 6)
-        {   
-            lcd_gotoxy(1, 1);
-            lcd_putc(0x00);
-            lcd_putc(0x00);
-            lcd_putc(0x00);
-            lcd_putc(0x00);
-            lcd_putc(0x00);
-            lcd_putc(0x00);
-            lcd_puts(" ");
-            lcd_puts(" ");
-            lcd_puts(" ");
-        }
-        else if (tenths == 7)
-        {   
-            lcd_gotoxy(1, 1);
-            lcd_putc(0x00);
-            lcd_putc(0x00);
-            lcd_putc(0x00);
-            lcd_putc(0x00);
-            lcd_putc(0x00);
-            lcd_putc(0x00);
-            lcd_putc(0x00);
-            lcd_puts(" ");
-            lcd_puts(" ");
-        }
-        else if (tenths == 8)
-        {   
-            lcd_gotoxy(1, 1);
-            lcd_putc(0x00);
-            lcd_putc(0x00);
-            lcd_putc(0x00);
-            lcd_putc(0x00);
-            lcd_putc(0x00);
-            lcd_putc(0x00);
-            lcd_putc(0x00);
-            lcd_putc(0x00);
-            lcd_puts(" ");
-        }
-        else
-        {   
-            lcd_gotoxy(1, 1);
-            lcd_putc(0x00);
-            lcd_putc(0x00);
-            lcd_putc(0x00);
-            lcd_putc(0x00);
-            lcd_putc(0x00);
-            lcd_putc(0x00);
-            lcd_putc(0x00);
-            lcd_putc(0x00);
-            lcd_putc(0x00);
-        }
-        
-        lcd_gotoxy(11, 1);
-        lcd_puts("c");
+        lcd_gotoxy(8, 1);
+        lcd_puts("      ");
+        lcd_gotoxy(8, 1);
+        lcd_puts("NONE");
     }
-    // Else do nothing and exit the ISR
+    else if ((value == 0x27f) | (value == 0x280))
+    {
+        lcd_gotoxy(8, 1);
+        lcd_puts("      ");
+        lcd_gotoxy(8, 1);
+        lcd_puts("SELECT");
+    }
+    else if ((value == 0x199) | (value == 0x19a))
+    {
+        lcd_gotoxy(8, 1);
+        lcd_puts("      ");
+        lcd_gotoxy(8, 1);
+        lcd_puts("LEFT");
+    }
+    else if ((value == 0x63) | (value == 0x62))
+    {
+        lcd_gotoxy(8, 1);
+        lcd_puts("      ");
+        lcd_gotoxy(8, 1);
+        lcd_puts("UP");
+    }
+    else if ((value == 0x100) | (value == 0x101))
+    {
+        lcd_gotoxy(8, 1);
+        lcd_puts("      ");
+        lcd_gotoxy(8, 1);
+        lcd_puts("DOWN");
+    }
+    if ((value == 0x0f))
+    {
+        lcd_gotoxy(8, 1);
+        lcd_puts("      ");
+        lcd_gotoxy(8, 1);
+        lcd_puts("RIGHT");
+    }
 }
