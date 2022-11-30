@@ -39,7 +39,7 @@
 #define SW PD2 
 #define DT PD1   
 #define CLK PD0
-*/
+
 
 /* Function definitions ----------------------------------------------*/
 /**********************************************************************
@@ -49,21 +49,27 @@
  * Returns:  none
  **********************************************************************/
 int main(void)
-{
+{   uint16_t value = 0;
     // Initialize display
-    lcd_init(LCD_DISP_ON);
-    lcd_gotoxy(1, 0); lcd_puts("value:");
-    lcd_gotoxy(3, 1); lcd_puts("key:");
-    lcd_gotoxy(8, 0); lcd_puts("a");  // Put ADC value in decimal
-    lcd_gotoxy(13,0); lcd_puts("b");  // Put ADC value in hexadecimal
-    lcd_gotoxy(8, 1); lcd_puts("c");  // Put button name here
+    lcd_init(LCD_DISP_ON_CURSOR_BLINK);
 
     // Configure Analog-to-Digital Convertion unit
     // Select ADC voltage reference to "AVcc with external capacitor at AREF pin"
+
     ADMUX |= (1<<REFS0);
     ADMUX &= ~(1<<REFS1);
     // Select input channel ADC0 (voltage divider pin)
-    ADMUX &= ~((1<<MUX0) | (1<<MUX1) | (1<<MUX2) | (1<<MUX3));
+    if(value == 0)
+    {
+        ADMUX &= ~((1<<MUX0) | (1<<MUX1) | (1<<MUX2) | (1<<MUX3)); 
+        value = 1;
+    }
+    else if(value == 1)
+    {
+        ADMUX &= ~((1<<MUX1) | (1<<MUX2) | (1<<MUX3)); ADMUX |= (1<<MUX0);
+        value = 0;
+    }
+
     // Enable ADC module
     ADCSRA |= (1<<ADEN);
     // Enable conversion complete interrupt
@@ -71,9 +77,10 @@ int main(void)
     // Set clock prescaler to 128
     ADCSRA |= ((1<<ADPS0) | (1<<ADPS1) | (1<<ADPS2));
 
+
     // Configure 16-bit Timer/Counter1 to start ADC conversion
     // Set prescaler to 33 ms and enable overflow interrupt
-    TIM1_overflow_33ms();
+    TIM1_overflow_262ms();
     TIM1_overflow_interrupt_enable();
 
     // Enables interrupts by setting the global interrupt mask
@@ -97,7 +104,7 @@ int main(void)
  * Purpose:  Use single conversion mode and start conversion every 100 ms.
  **********************************************************************/
 ISR(TIMER1_OVF_vect)
-{
+{   
     // Start ADC conversion
     ADCSRA |= (1<<ADSC);
 }
@@ -107,66 +114,67 @@ ISR(TIMER1_OVF_vect)
  * Purpose:  Display converted value on LCD screen.
  **********************************************************************/
 ISR(ADC_vect)
-{
-    uint16_t value;
+{   uint16_t xPosition = 9;
+    uint16_t yPosition = 0;
+    uint16_t xValue;
+    uint16_t yValue;
+    uint16_t stop;
     char string[4];  // String for converted numbers by itoa()
 
     // Read converted value
     // Note that, register pair ADCH and ADCL can be read as a 16-bit value ADC
-    value = ADC;
+    xValue = GPIO_read(&PINC,VRX);
+    yValue = GPIO_read(&PINC,VRY);
+    stop = GPIO_read(&PIND,SW);
     // Convert "value" to "string" and display it
-    itoa(value, string, 10);
-    lcd_gotoxy(8, 0);
-    lcd_puts("      ");
-    lcd_gotoxy(8, 0);
-    lcd_puts(string);
+    if (1) 
+    {
+        if (xValue == 0 & yValue == 0)
+        {
+            if (xPosition <0)
+            {
+              xPosotion = 15;  
+            }
+            else
+            {
+                xPosition --; 
+            }
+           
+        }
+        else if (xValue == 1 & yValue == 0)
+        {
+            if (xPosition > 1)
+            {
+              xPosotion = 0;  
+            }
+            else
+            {
+                yPosition ++; 
+            } 
+        }
+        else if (xValue == 0 & yValue == 1)
+        {
+            if (xPosition > 0)
+            {
+              xPosotion = 1;  
+            }
+            else
+            {
+                yPosition --; 
+            } 
+        }
+        else if (xValue == 1 & yValue == 1)
+        {
+            if (xPosition > 15)
+            {
+              xPosotion = 0;  
+            }
+            else
+            {
+                xPosition ++; 
+            } 
+        }
+    }
 
-    itoa(value, string, 16);
-    lcd_gotoxy(13, 0);
-    lcd_puts("      ");
-    lcd_gotoxy(13, 0);
-    lcd_puts(string);
-
-    if ((value == 0x3ff) | (value == 0x3fe))
-    {
-        lcd_gotoxy(8, 1);
-        lcd_puts("      ");
-        lcd_gotoxy(8, 1);
-        lcd_puts("NONE");
-    }
-    else if ((value == 0x27f) | (value == 0x280))
-    {
-        lcd_gotoxy(8, 1);
-        lcd_puts("      ");
-        lcd_gotoxy(8, 1);
-        lcd_puts("SELECT");
-    }
-    else if ((value == 0x199) | (value == 0x19a))
-    {
-        lcd_gotoxy(8, 1);
-        lcd_puts("      ");
-        lcd_gotoxy(8, 1);
-        lcd_puts("LEFT");
-    }
-    else if ((value == 0x63) | (value == 0x62))
-    {
-        lcd_gotoxy(8, 1);
-        lcd_puts("      ");
-        lcd_gotoxy(8, 1);
-        lcd_puts("UP");
-    }
-    else if ((value == 0x100) | (value == 0x101))
-    {
-        lcd_gotoxy(8, 1);
-        lcd_puts("      ");
-        lcd_gotoxy(8, 1);
-        lcd_puts("DOWN");
-    }
-    if ((value == 0x0f))
-    {
-        lcd_gotoxy(8, 1);
-        lcd_puts("      ");
-        lcd_gotoxy(8, 1);
-        lcd_puts("RIGHT");
-    }
+    lcd_gotoxy(xPosition, yPosition);
 }
