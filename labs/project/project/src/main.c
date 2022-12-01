@@ -24,7 +24,6 @@
  *     A+K  - Back-light enabled/disabled by PB2
  * 
  **********************************************************************/
-
 /* Includes ----------------------------------------------------------*/
 #include <avr/io.h>         // AVR device-specific IO definitions
 #include <avr/interrupt.h>  // Interrupts standard C library for AVR-GCC
@@ -36,10 +35,12 @@
 /* Defines ----------------------------------------------------------*/ 
 #define VRX PC0 
 #define VRY PC1   
-#define SW PD2 
+
 #define DT PD1   
 #define CLK PD0
+#define SW PD2
 
+static uint16_t value = 0;
 
 /* Function definitions ----------------------------------------------*/
 /**********************************************************************
@@ -49,9 +50,46 @@
  * Returns:  none
  **********************************************************************/
 int main(void)
-{   uint16_t value = 0;
+{   
     // Initialize display
     lcd_init(LCD_DISP_ON_CURSOR_BLINK);
+
+    uint8_t Play[24] = {
+        0b00000,
+        0b11000,
+        0b10110,
+        0b10001,
+        0b10001,
+        0b10110,
+        0b11000,
+        0b00000
+    };
+    lcd_command(1<<LCD_CGRAM);       // Set addressing to CGRAM (Character Generator RAM)
+                                     // ie to individual lines of character patterns
+    for (uint8_t i = 0; i < 24; i++)  // Copy new character patterns line by line to CGRAM
+        lcd_data(Play[i]);
+    lcd_command(1<<LCD_DDRAM);       // Set addressing back to DDRAM (Display Data RAM)
+    lcd_gotoxy(10, 0);
+    lcd_putc(0x00);
+
+
+    uint8_t Stop[24] = {
+        0b01010,
+        0b01010,
+        0b01010,
+        0b01010,
+        0b01010,
+        0b01010,
+        0b01010,
+        0b01010
+    };
+    lcd_command(1<<LCD_CGRAM);       // Set addressing to CGRAM (Character Generator RAM)
+                                     // ie to individual lines of character patterns
+    for (uint8_t i = 0; i < 24; i++)  // Copy new character patterns line by line to CGRAM
+        lcd_data(Stop[i]);
+    lcd_command(1<<LCD_DDRAM);       // Set addressing back to DDRAM (Display Data RAM)
+    lcd_gotoxy(10, 0);
+    lcd_putc(0x01);
 
     // Configure Analog-to-Digital Convertion unit
     // Select ADC voltage reference to "AVcc with external capacitor at AREF pin"
@@ -59,16 +97,7 @@ int main(void)
     ADMUX |= (1<<REFS0);
     ADMUX &= ~(1<<REFS1);
     // Select input channel ADC0 (voltage divider pin)
-    if(value == 0)
-    {
-        ADMUX &= ~((1<<MUX0) | (1<<MUX1) | (1<<MUX2) | (1<<MUX3)); 
-        value = 1;
-    }
-    else if(value == 1)
-    {
-        ADMUX &= ~((1<<MUX1) | (1<<MUX2) | (1<<MUX3)); ADMUX |= (1<<MUX0);
-        value = 0;
-    }
+    
 
     // Enable ADC module
     ADCSRA |= (1<<ADEN);
@@ -80,9 +109,11 @@ int main(void)
 
     // Configure 16-bit Timer/Counter1 to start ADC conversion
     // Set prescaler to 33 ms and enable overflow interrupt
-    TIM1_overflow_262ms();
-    TIM1_overflow_interrupt_enable();
+    TIM0_overflow_1ms();
+    TIM0_overflow_interrupt_enable();
 
+    TIM2_overflow_16ms();
+    TIM2_overflow_interrupt_enable();
     // Enables interrupts by setting the global interrupt mask
     sei();
 
@@ -103,10 +134,94 @@ int main(void)
  * Function: Timer/Counter1 overflow interrupt
  * Purpose:  Use single conversion mode and start conversion every 100 ms.
  **********************************************************************/
-ISR(TIMER1_OVF_vect)
-{   
+ISR(TIMER0_OVF_vect)
+{  
+    if(value == 0)
+    {
+        ADMUX &= ~((1<<MUX0) | (1<<MUX1) | (1<<MUX2) | (1<<MUX3)); 
+    }
+    else if(value == 1)
+    {
+        ADMUX &= ~((1<<MUX1) | (1<<MUX2) | (1<<MUX3)); ADMUX |= (1<<MUX0);
+    }
     // Start ADC conversion
     ADCSRA |= (1<<ADSC);
+}
+ISR(TIMER2_OVF_vect)
+{
+    static uint8_t no_of_overflows = 0;
+    static uint8_t no_of_overflows2 = 0;
+    static uint8_t tenths = 0;  // Tenths of a second
+    static uint8_t seconds = 0;
+    static uint8_t minutes = 0;
+    static uint16_t stop;
+    static uint16_t stop2;
+    char string[2];             // String for converted numbers by itoa()
+    
+    stop = GPIO_read(&PIND,SW);
+    if (stop == 1)
+    {
+        no_of_overflows ++; 
+    }
+
+    if (no_of_overflows >= 6)
+    {
+
+        // Do this every 6 x 16 ms = 100 ms
+        no_of_overflows = 0;
+        tenths++;
+
+        if(tenths>9)
+        {
+            tenths=0;
+            seconds++;
+            if (seconds>59)
+            {
+                seconds=0;
+                minutes++;
+            }
+        }
+        // Count tenth of seconds 0, 1, ..., 9, 0, 1, ...
+
+
+        itoa(tenths, string, 10);  // Convert decimal value to string
+        lcd_gotoxy(6, 0);
+        lcd_puts(string);
+        
+        itoa(seconds, string, 10);
+        if (seconds<10)
+        {
+            lcd_gotoxy(4, 0);
+            lcd_puts(string);
+            lcd_gotoxy(3, 0);
+            lcd_puts("0");
+        }
+        else 
+        {
+            lcd_gotoxy(3, 0);
+            lcd_puts(string);
+        }
+
+        itoa(minutes, string, 10);
+        if(minutes<10)
+        {
+            lcd_gotoxy(1, 0);
+            lcd_puts(string);
+            lcd_gotoxy(0, 0);
+            lcd_puts("0");
+        }
+        else
+        {
+            lcd_gotoxy(0, 0);
+            lcd_puts(string);
+        }
+
+        // Display "00:00.tenths"
+        lcd_gotoxy(5, 0);
+        lcd_puts(".");
+        lcd_gotoxy(2, 0);
+        lcd_puts(":");  
+    }
 }
 
 /**********************************************************************
@@ -114,67 +229,68 @@ ISR(TIMER1_OVF_vect)
  * Purpose:  Display converted value on LCD screen.
  **********************************************************************/
 ISR(ADC_vect)
-{   uint16_t xPosition = 9;
-    uint16_t yPosition = 0;
-    uint16_t xValue;
-    uint16_t yValue;
-    uint16_t stop;
+{   
+    uint16_t nowerflows2 = 0;
+    static uint16_t xValue;
+    static uint16_t yValue;
     char string[4];  // String for converted numbers by itoa()
 
     // Read converted value
     // Note that, register pair ADCH and ADCL can be read as a 16-bit value ADC
-    xValue = GPIO_read(&PINC,VRX);
-    yValue = GPIO_read(&PINC,VRY);
-    stop = GPIO_read(&PIND,SW);
-    // Convert "value" to "string" and display it
-    if (1) 
+
+    if(value == 1)
     {
-        if (xValue == 0 & yValue == 0)
-        {
-            if (xPosition <0)
-            {
-              xPosotion = 15;  
-            }
-            else
-            {
-                xPosition --; 
-            }
-           
-        }
-        else if (xValue == 1 & yValue == 0)
-        {
-            if (xPosition > 1)
-            {
-              xPosotion = 0;  
-            }
-            else
-            {
-                yPosition ++; 
-            } 
-        }
-        else if (xValue == 0 & yValue == 1)
-        {
-            if (xPosition > 0)
-            {
-              xPosotion = 1;  
-            }
-            else
-            {
-                yPosition --; 
-            } 
-        }
-        else if (xValue == 1 & yValue == 1)
-        {
-            if (xPosition > 15)
-            {
-              xPosotion = 0;  
-            }
-            else
-            {
-                xPosition ++; 
-            } 
-        }
+        xValue = ADC;
+        value = 0;
+    }
+    else if(value == 0)
+    {
+        yValue = ADC;
+        value = 1;
+    }
+    //yValue = GPIO_read(&PINC,VRY);
+    //stop = GPIO_read(&PIND,SW2);
+    // Convert "value" to "string" and display it
+    if (xValue < 400)
+    {
+        lcd_gotoxy(11, 0);
+        lcd_puts("LEFT ");
+    }
+    else if (yValue < 400)
+    {
+        lcd_gotoxy(11, 0);
+        lcd_puts("DOWN ");
+    }
+    else if (yValue > 600)
+    {
+        lcd_gotoxy(11, 0);
+        lcd_puts("UP   ");
+    }
+    else if (xValue > 600)
+    { 
+        lcd_gotoxy(11, 0);
+        lcd_puts("RIGHT");
+    }
+    else
+    { 
+        lcd_gotoxy(11, 0);
+        lcd_puts("NONE ");
     }
 
-    lcd_gotoxy(xPosition, yPosition);
+    lcd_gotoxy(0, 1);
+    lcd_puts("X=");
+    itoa(xValue, string, 10);
+    lcd_gotoxy(2, 1);
+    lcd_puts("    ");
+    lcd_gotoxy(2, 1);
+    lcd_puts(string);  
+    
+    lcd_gotoxy(7, 1);
+    lcd_puts("Y=");
+    itoa(yValue, string, 10);
+    lcd_gotoxy(9, 1);
+    lcd_puts("    ");
+    lcd_gotoxy(9, 1);
+    lcd_puts(string); 
+
 }
