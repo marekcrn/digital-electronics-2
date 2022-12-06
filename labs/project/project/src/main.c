@@ -51,7 +51,7 @@ static uint16_t value = 0;
 int main(void)
 {   
     // Initialize display
-    lcd_init(LCD_DISP_ON_CURSOR_BLINK);
+    lcd_init(LCD_DISP_ON);
 
     uint8_t Play[24] = {
         0b00000,
