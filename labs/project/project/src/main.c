@@ -35,6 +35,7 @@
 /* Defines ----------------------------------------------------------*/ 
 #define VRX PC0 
 #define VRY PC1   
+#define SW2  PD3
 
 #define DT PD1   
 #define CLK PD0
@@ -152,12 +153,15 @@ ISR(TIMER2_OVF_vect)
     static uint8_t tenths = 0;  // Tenths of a second
     static uint8_t seconds = 0;
     static uint8_t minutes = 0;
-    static uint16_t start = 0;
-    static uint16_t encoder = 0;
+    static uint16_t start;
+    static uint16_t encoder;
+    static uint16_t pushed;
+    static uint16_t n = 0;
 
     char string[2];             // String for converted numbers by itoa()
     start = GPIO_read(&PIND,SW);
     encoder = GPIO_read(&PIND,CLK);
+    pushed = GPIO_read(&PIND,SW2);  
 
     lcd_gotoxy(8, 0);
     itoa(encoder, string, 10);
@@ -173,6 +177,14 @@ ISR(TIMER2_OVF_vect)
         // Do this every 6 x 16 ms = 100 ms
         no_of_overflows = 0;
         tenths++;
+
+        if (pushed == 0)
+        {
+            n ++;
+        }
+        lcd_gotoxy(14, 1);
+        itoa(n, string, 10);
+        lcd_puts(string);
 
         if(tenths>9)
         {
@@ -233,7 +245,6 @@ ISR(TIMER2_OVF_vect)
  **********************************************************************/
 ISR(ADC_vect)
 {   
-    uint16_t nowerflows2 = 0;
     static uint16_t xValue;
     static uint16_t yValue;
     char string[4];  // String for converted numbers by itoa()
@@ -251,9 +262,8 @@ ISR(ADC_vect)
         yValue = ADC;
         value = 1;
     }
-    //yValue = GPIO_read(&PINC,VRY);
-    //stop = GPIO_read(&PIND,SW2);
-    // Convert "value" to "string" and display it
+    
+    
     if (xValue < 400)
     {
         lcd_gotoxy(11, 0);
