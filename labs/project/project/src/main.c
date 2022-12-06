@@ -41,7 +41,6 @@
 #define SW PD2
 
 static uint16_t value = 0;
-
 /* Function definitions ----------------------------------------------*/
 /**********************************************************************
  * Function: Main function where the program execution begins
@@ -150,23 +149,28 @@ ISR(TIMER0_OVF_vect)
 ISR(TIMER2_OVF_vect)
 {
     static uint8_t no_of_overflows = 0;
-    static uint8_t no_of_overflows2 = 0;
     static uint8_t tenths = 0;  // Tenths of a second
     static uint8_t seconds = 0;
     static uint8_t minutes = 0;
-    static uint16_t stop;
-    static uint16_t stop2;
+    static uint16_t start = 0;
+    static uint16_t encoder = 0;
+
     char string[2];             // String for converted numbers by itoa()
-    
-    stop = GPIO_read(&PIND,SW);
-    if (stop == 1)
+    start = GPIO_read(&PIND,SW);
+    encoder = GPIO_read(&PIND,CLK);
+    encoder2 = GPIO_read(&PIND,DT);
+
+    lcd_gotoxy(8, 0);
+    itoa(encoder, string, 10);
+    lcd_puts(string);  
+
+    if (start == 1)
     {
         no_of_overflows ++; 
     }
 
     if (no_of_overflows >= 6)
     {
-
         // Do this every 6 x 16 ms = 100 ms
         no_of_overflows = 0;
         tenths++;
