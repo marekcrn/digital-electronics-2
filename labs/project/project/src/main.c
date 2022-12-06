@@ -158,7 +158,6 @@ ISR(TIMER2_OVF_vect)
     char string[2];             // String for converted numbers by itoa()
     start = GPIO_read(&PIND,SW);
     encoder = GPIO_read(&PIND,CLK);
-    encoder2 = GPIO_read(&PIND,DT);
 
     lcd_gotoxy(8, 0);
     itoa(encoder, string, 10);
