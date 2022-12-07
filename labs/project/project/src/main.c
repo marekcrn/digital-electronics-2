@@ -269,12 +269,12 @@ ISR(ADC_vect)
         lcd_gotoxy(11, 0);
         lcd_puts("LEFT ");
     }
-    else if (yValue < 400)
+    else if (yValue > 600)
     {
         lcd_gotoxy(11, 0);
         lcd_puts("DOWN ");
     }
-    else if (yValue > 600)
+    else if (yValue < 400)
     {
         lcd_gotoxy(11, 0);
         lcd_puts("UP   ");
