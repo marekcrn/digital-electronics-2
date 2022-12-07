@@ -29,17 +29,17 @@
 #include <avr/interrupt.h>  // Interrupts standard C library for AVR-GCC
 #include <gpio.h>           // GPIO library for AVR-GCC
 #include "timer.h"          // Timer library for AVR-GCC
-#include <lcd.h>            // Peter Fleury's LCD library
 #include <stdlib.h>         // C library. Needed for number conversions
+#include <util/delay.h>
 
 /* Defines ----------------------------------------------------------*/ 
-#define VRX PC0 
-#define VRY PC1   
-#define SW2  PD3
+#define VRX     PC0 
+#define VRY     PC1   
+#define SW2     PD3
 
-#define DT PD1   
-#define CLK PD0
-#define SW PD2
+#define ROTOR1  PB1
+#define ROTOR2  PB2
+#define F_CPU 16000000UL
 
 static uint16_t value = 0;
 /* Function definitions ----------------------------------------------*/
@@ -51,46 +51,6 @@ static uint16_t value = 0;
  **********************************************************************/
 int main(void)
 {   
-    // Initialize display
-    lcd_init(LCD_DISP_ON);
-
-    uint8_t Play[24] = {
-        0b00000,
-        0b11000,
-        0b10110,
-        0b10001,
-        0b10001,
-        0b10110,
-        0b11000,
-        0b00000
-    };
-    lcd_command(1<<LCD_CGRAM);       // Set addressing to CGRAM (Character Generator RAM)
-                                     // ie to individual lines of character patterns
-    for (uint8_t i = 0; i < 24; i++)  // Copy new character patterns line by line to CGRAM
-        lcd_data(Play[i]);
-    lcd_command(1<<LCD_DDRAM);       // Set addressing back to DDRAM (Display Data RAM)
-    lcd_gotoxy(10, 0);
-    lcd_putc(0x00);
-
-
-    uint8_t Stop[24] = {
-        0b01010,
-        0b01010,
-        0b01010,
-        0b01010,
-        0b01010,
-        0b01010,
-        0b01010,
-        0b01010
-    };
-    lcd_command(1<<LCD_CGRAM);       // Set addressing to CGRAM (Character Generator RAM)
-                                     // ie to individual lines of character patterns
-    for (uint8_t i = 0; i < 24; i++)  // Copy new character patterns line by line to CGRAM
-        lcd_data(Stop[i]);
-    lcd_command(1<<LCD_DDRAM);       // Set addressing back to DDRAM (Display Data RAM)
-    lcd_gotoxy(10, 0);
-    lcd_putc(0x01);
-
     // Configure Analog-to-Digital Convertion unit
     // Select ADC voltage reference to "AVcc with external capacitor at AREF pin"
 
@@ -107,13 +67,17 @@ int main(void)
     ADCSRA |= ((1<<ADPS0) | (1<<ADPS1) | (1<<ADPS2));
 
 
+    TCCR1A |= (1<<COM1A1)|(1<<COM1B1)|(1<<WGM11);
+    TCCR1B |= (1<<WGM13)|(1<<WGM12)|(1<<CS11)|(1<<CS10);
+
+    ICR1 = 4999;
+
+    DDRD |= (1<<PD4);
     // Configure 16-bit Timer/Counter1 to start ADC conversion
     // Set prescaler to 33 ms and enable overflow interrupt
     TIM0_overflow_1ms();
     TIM0_overflow_interrupt_enable();
 
-    TIM2_overflow_16ms();
-    TIM2_overflow_interrupt_enable();
     // Enables interrupts by setting the global interrupt mask
     sei();
 
@@ -122,12 +86,19 @@ int main(void)
     {
         /* Empty loop. All subsequent operations are performed exclusively 
          * inside interrupt service routines ISRs */
+        OCR1A = 97;
+        _delay_ms(1000);
+        OCR1A = 316;
+        _delay_ms(1000);
+        OCR1A = 425;
+        _delay_ms(1000);
+        OCR1A = 535;
+        _delay_ms(1000);
     }
 
     // Will never reach this
     return 0;
 }
-
 
 /* Interrupt service routines ----------------------------------------*/
 /**********************************************************************
@@ -147,97 +118,6 @@ ISR(TIMER0_OVF_vect)
     // Start ADC conversion
     ADCSRA |= (1<<ADSC);
 }
-ISR(TIMER2_OVF_vect)
-{
-    static uint8_t no_of_overflows = 0;
-    static uint8_t tenths = 0;  // Tenths of a second
-    static uint8_t seconds = 0;
-    static uint8_t minutes = 0;
-    static uint16_t start;
-    static uint16_t encoder;
-    static uint16_t pushed;
-    static uint16_t n = 0;
-
-    char string[2];             // String for converted numbers by itoa()
-    start = GPIO_read(&PIND,SW);
-    encoder = GPIO_read(&PIND,CLK);
-    pushed = GPIO_read(&PIND,SW2);  
-
-    lcd_gotoxy(8, 0);
-    itoa(encoder, string, 10);
-    lcd_puts(string);  
-
-    if (start == 1)
-    {
-        no_of_overflows ++; 
-    }
-
-    if (no_of_overflows >= 6)
-    {
-        // Do this every 6 x 16 ms = 100 ms
-        no_of_overflows = 0;
-        tenths++;
-
-        if (pushed == 0)
-        {
-            n ++;
-        }
-        lcd_gotoxy(14, 1);
-        itoa(n, string, 10);
-        lcd_puts(string);
-
-        if(tenths>9)
-        {
-            tenths=0;
-            seconds++;
-            if (seconds>59)
-            {
-                seconds=0;
-                minutes++;
-            }
-        }
-        // Count tenth of seconds 0, 1, ..., 9, 0, 1, ...
-
-
-        itoa(tenths, string, 10);  // Convert decimal value to string
-        lcd_gotoxy(6, 0);
-        lcd_puts(string);
-        
-        itoa(seconds, string, 10);
-        if (seconds<10)
-        {
-            lcd_gotoxy(4, 0);
-            lcd_puts(string);
-            lcd_gotoxy(3, 0);
-            lcd_puts("0");
-        }
-        else 
-        {
-            lcd_gotoxy(3, 0);
-            lcd_puts(string);
-        }
-
-        itoa(minutes, string, 10);
-        if(minutes<10)
-        {
-            lcd_gotoxy(1, 0);
-            lcd_puts(string);
-            lcd_gotoxy(0, 0);
-            lcd_puts("0");
-        }
-        else
-        {
-            lcd_gotoxy(0, 0);
-            lcd_puts(string);
-        }
-
-        // Display "00:00.tenths"
-        lcd_gotoxy(5, 0);
-        lcd_puts(".");
-        lcd_gotoxy(2, 0);
-        lcd_puts(":");  
-    }
-}
 
 /**********************************************************************
  * Function: ADC complete interrupt
@@ -247,10 +127,11 @@ ISR(ADC_vect)
 {   
     static uint16_t xValue;
     static uint16_t yValue;
+    
     char string[4];  // String for converted numbers by itoa()
 
-    // Read converted value
-    // Note that, register pair ADCH and ADCL can be read as a 16-bit value ADC
+    //char string[2];             // String for converted numbers by itoa()
+    //pushed = GPIO_read(&PIND,SW2);  
 
     if(value == 1)
     {
@@ -266,44 +147,25 @@ ISR(ADC_vect)
     
     if (xValue < 400)
     {
-        lcd_gotoxy(11, 0);
-        lcd_puts("LEFT ");
+        
     }
     else if (yValue < 400)
     {
-        lcd_gotoxy(11, 0);
-        lcd_puts("DOWN ");
+       
     }
     else if (yValue > 600)
     {
-        lcd_gotoxy(11, 0);
-        lcd_puts("UP   ");
+       
     }
     else if (xValue > 600)
     { 
-        lcd_gotoxy(11, 0);
-        lcd_puts("RIGHT");
+        
     }
     else
-    { 
-        lcd_gotoxy(11, 0);
-        lcd_puts("NONE ");
+    {
+
     }
 
-    lcd_gotoxy(0, 1);
-    lcd_puts("X=");
-    itoa(xValue, string, 10);
-    lcd_gotoxy(2, 1);
-    lcd_puts("    ");
-    lcd_gotoxy(2, 1);
-    lcd_puts(string);  
-    
-    lcd_gotoxy(7, 1);
-    lcd_puts("Y=");
-    itoa(yValue, string, 10);
-    lcd_gotoxy(9, 1);
-    lcd_puts("    ");
-    lcd_gotoxy(9, 1);
-    lcd_puts(string); 
+}*/
 
-}
+
