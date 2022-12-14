@@ -30,18 +30,23 @@
 #include <gpio.h>           // GPIO library for AVR-GCC
 #include "timer.h"          // Timer library for AVR-GCC
 #include <stdlib.h>         // C library. Needed for number conversions
-#include <util/delay.h>
 
 /* Defines ----------------------------------------------------------*/ 
-#define VRX     PC0 
-#define VRY     PC1   
-#define SW2     PD3
+#define VRX PC0     //PC0 is pin where joystick x axis is connected
+#define VRY PC1     //PC1 is pin where joystick y axis is connected
+#define M1 PB3      //PB1 is pin where servo motor 1 is connected
+//#define M2 PB2       //PB2 is pin where servo motor 2 is connected
 
-#define ROTOR1  PB1
-#define ROTOR2  PB2
-#define F_CPU 16000000UL
+#define M_default 1500
+#define M_left 600
+#define M_right 2400
+#define M_step 500
 
-static uint16_t value = 0;
+
+uint16_t value = 0;
+uint32_t M1_pos = M_default;
+uint32_t M2_pos = M_default;
+
 /* Function definitions ----------------------------------------------*/
 /**********************************************************************
  * Function: Main function where the program execution begins
@@ -51,34 +56,41 @@ static uint16_t value = 0;
  **********************************************************************/
 int main(void)
 {   
+
+    GPIO_mode_output(&DDRB, M1);
+
+    DDRB |= (1<<PB3);
     // Configure Analog-to-Digital Convertion unit
     // Select ADC voltage reference to "AVcc with external capacitor at AREF pin"
 
     ADMUX |= (1<<REFS0);
     ADMUX &= ~(1<<REFS1);
-    // Select input channel ADC0 (voltage divider pin)
-    
 
     // Enable ADC module
     ADCSRA |= (1<<ADEN);
     // Enable conversion complete interrupt
     ADCSRA |= (1<<ADIE);
     // Set clock prescaler to 128
-    ADCSRA |= ((1<<ADPS0) | (1<<ADPS1) | (1<<ADPS2));
+    ADCSRA |= (1<<ADPS2 | 1<<ADPS1 | 1<<ADPS0);
+
+    TCCR1A &= ~((1 << COM1A0) | (1 << COM1B0));
+    TCCR1A |= (1 << WGM11) | (1 << COM1A1) | (1 << COM1B1);
+    TCCR1B |= (1 << WGM13);
+
+    ICR1 = 20000;
+    OCR1A = M1_pos;
+    OCR1B = M2_pos;
+    
+    TCCR1B |= (1 << CS11);
+
+    
 
 
-    TCCR1A |= (1<<COM1A1)|(1<<COM1B1)|(1<<WGM11);
-    TCCR1B |= (1<<WGM13)|(1<<WGM12)|(1<<CS11)|(1<<CS10);
-
-    ICR1 = 4999;
-
-    DDRD |= (1<<PD4);
     // Configure 16-bit Timer/Counter1 to start ADC conversion
-    // Set prescaler to 33 ms and enable overflow interrupt
-    TIM0_overflow_1ms();
+    // Set prescaler to 16 ms and enable overflow interrupt    
+    TIM0_overflow_16ms();
     TIM0_overflow_interrupt_enable();
-
-    // Enables interrupts by setting the global interrupt mask
+    
     sei();
 
     // Infinite loop
@@ -86,19 +98,12 @@ int main(void)
     {
         /* Empty loop. All subsequent operations are performed exclusively 
          * inside interrupt service routines ISRs */
-        OCR1A = 97;
-        _delay_ms(1000);
-        OCR1A = 316;
-        _delay_ms(1000);
-        OCR1A = 425;
-        _delay_ms(1000);
-        OCR1A = 535;
-        _delay_ms(1000);
     }
 
     // Will never reach this
     return 0;
 }
+
 
 /* Interrupt service routines ----------------------------------------*/
 /**********************************************************************
@@ -106,7 +111,15 @@ int main(void)
  * Purpose:  Use single conversion mode and start conversion every 100 ms.
  **********************************************************************/
 ISR(TIMER0_OVF_vect)
-{  
+{
+    static int8_t noofoverflow = 0;
+    noofoverflow++;
+    if(noofoverflow > 50)
+    {
+        noofoverflow = 0;
+        ADCSRA |= (1 << ADSC);
+    }
+
     if(value == 0)
     {
         ADMUX &= ~((1<<MUX0) | (1<<MUX1) | (1<<MUX2) | (1<<MUX3)); 
@@ -115,57 +128,59 @@ ISR(TIMER0_OVF_vect)
     {
         ADMUX &= ~((1<<MUX1) | (1<<MUX2) | (1<<MUX3)); ADMUX |= (1<<MUX0);
     }
-    // Start ADC conversion
-    ADCSRA |= (1<<ADSC);
 }
 
-/**********************************************************************
- * Function: ADC complete interrupt
- * Purpose:  Display converted value on LCD screen.
- **********************************************************************/
 ISR(ADC_vect)
-{   
+{
     static uint16_t xValue;
     static uint16_t yValue;
-    
     char string[4];  // String for converted numbers by itoa()
 
-    //char string[2];             // String for converted numbers by itoa()
-    //pushed = GPIO_read(&PIND,SW2);  
-
-    if(value == 1)
+    // Read converted value
+    // Note that, register pair ADCH and ADCL can be read as a 16-bit value ADC
+    if (value == 0)
     {
         xValue = ADC;
-        value = 0;
-    }
-    else if(value == 0)
-    {
-        yValue = ADC;
         value = 1;
     }
-    
-    
-    if (xValue < 400)
+    else if (value == 1)
     {
         
+        yValue = ADC;
+        value = 0;
     }
-    else if (yValue < 400)
+
+    
+
+    if (xValue < 300 )
     {
-       
-    }
-    else if (yValue > 600)
-    {
-       
-    }
-    else if (xValue > 600)
-    { 
         
+        M1_pos -= M_step;
+        M2_pos -= M_step;
+        ICR1 = 500;
+
+    }
+    else if (xValue > 800 )
+    {
+        M1_pos += M_step;
+        M2_pos += M_step;
+        ICR1 =1000;
+
+    }
+    else if (yValue < 100)
+    {
+
+        ICR1 =1;
+    }
+    else if (yValue > 900)
+    {
+        ICR1 = 255;
     }
     else
     {
 
     }
-
-}*/
-
+    OCR1A = M1_pos;
+    OCR1B = M2_pos;
+}
 
