@@ -29,18 +29,19 @@
 #include <avr/interrupt.h>  // Interrupts standard C library for AVR-GCC
 #include <gpio.h>           // GPIO library for AVR-GCC
 #include "timer.h"          // Timer library for AVR-GCC
+#include <lcd.h>            // Peter Fleury's LCD library
 #include <stdlib.h>         // C library. Needed for number conversions
 
 /* Defines ----------------------------------------------------------*/ 
 #define VRX PC0     //PC0 is pin where joystick x axis is connected
 #define VRY PC1     //PC1 is pin where joystick y axis is connected
-#define M1 PB3      //PB1 is pin where servo motor 1 is connected
-//#define M2 PB2       //PB2 is pin where servo motor 2 is connected
+#define M1 PB1      //PB1 is pin where servo motor 1 is connected
+#define M2 PB2      //PB2 is pin where servo motor 2 is connected
 
 #define M_default 1500
 #define M_left 600
 #define M_right 2400
-#define M_step 500
+#define M_step 1500
 
 
 uint16_t value = 0;
@@ -57,9 +58,12 @@ uint32_t M2_pos = M_default;
 int main(void)
 {   
 
-    GPIO_mode_output(&DDRB, M1);
+    lcd_init(LCD_DISP_ON);
+    lcd_gotoxy(0, 0);
 
-    DDRB |= (1<<PB3);
+    GPIO_mode_output(&DDRB, M1);
+    GPIO_mode_output(&DDRB, M2);
+    
     // Configure Analog-to-Digital Convertion unit
     // Select ADC voltage reference to "AVcc with external capacitor at AREF pin"
 
@@ -81,8 +85,9 @@ int main(void)
     OCR1A = M1_pos;
     OCR1B = M2_pos;
     
-    TCCR1B |= (1 << CS11);
-
+    TCCR1B |= (1 << CS11) | (1 << CS10);
+    //PCICR |= (1<<PCIE0);
+    //PCMSK0 |= (1<< PCINT0);
     
 
 
@@ -120,14 +125,14 @@ ISR(TIMER0_OVF_vect)
         ADCSRA |= (1 << ADSC);
     }
 
-    if(value == 0)
+    /*if(value == 0)
     {
         ADMUX &= ~((1<<MUX0) | (1<<MUX1) | (1<<MUX2) | (1<<MUX3)); 
     }
     else if(value == 1)
     {
         ADMUX &= ~((1<<MUX1) | (1<<MUX2) | (1<<MUX3)); ADMUX |= (1<<MUX0);
-    }
+    }*/
 }
 
 ISR(ADC_vect)
@@ -150,37 +155,65 @@ ISR(ADC_vect)
         value = 0;
     }
 
-    
+    lcd_gotoxy(0,1);
+    lcd_puts("x");
+    itoa(xValue, string, 10);
+    lcd_gotoxy(1, 1);
+    lcd_puts("    ");
+    lcd_gotoxy(1, 1);
+    lcd_puts(string);
 
-    if (xValue < 300 )
+    lcd_gotoxy(6,1);
+    lcd_puts("y");
+    itoa(yValue, string, 10);
+    lcd_gotoxy(7, 1);
+    lcd_puts("    ");
+    lcd_gotoxy(7, 1);
+    lcd_puts(string);
+
+    if (xValue < 300 && M1_pos >= M_left)
     {
         
         M1_pos -= M_step;
         M2_pos -= M_step;
-        ICR1 = 500;
-
+        ICR1 -= 500;
+        lcd_gotoxy(11, 1);
+        lcd_puts("     ");
+        lcd_gotoxy(11,1);
+        lcd_puts("LEFT ");
     }
-    else if (xValue > 800 )
+    else if (xValue > 800 && M1_pos <= M_right)
     {
         M1_pos += M_step;
         M2_pos += M_step;
-        ICR1 =1000;
-
+        ICR1 +=500;
+        lcd_gotoxy(11, 1);
+        lcd_puts("     ");
+        lcd_gotoxy(11,1);
+        lcd_puts("RIGHT");
     }
     else if (yValue < 100)
     {
 
-        ICR1 =1;
+        lcd_gotoxy(11, 1);
+        lcd_puts("     ");
+        lcd_gotoxy(11,1);
+        lcd_puts("DOWN ");
     }
     else if (yValue > 900)
     {
-        ICR1 = 255;
+
+        lcd_gotoxy(11, 1);
+        lcd_puts("     ");
+        lcd_gotoxy(11,1);
+        lcd_puts("UP   ");
     }
     else
     {
-
+        lcd_gotoxy(11, 1);
+        lcd_puts("NONE ");
     }
     OCR1A = M1_pos;
     OCR1B = M2_pos;
-}
 
+}
