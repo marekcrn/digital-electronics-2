@@ -54,10 +54,10 @@ The goal of the project is cooperation in pairs, further study of the topic, des
 
 ### Source files & libraries
 
-1. **Timer:** [timer.h](https://github.com/marekcrn/digital-electronics-2/blob/main/labs/project2/project2/include/timer.h)
-2. **Gpio:** [gpio.c](https://github.com/marekcrn/digital-electronics-2/blob/main/labs/project2/project2/lib/gpio/gpio.c), [gpio.h](https://github.com/marekcrn/digital-electronics-2/blob/main/labs/project2/project2/lib/gpio/gpio.h)
-3. **LCD:** [lcd.c](https://github.com/marekcrn/digital-electronics-2/blob/main/labs/project2/project2/lib/lcd/lcd.c), [lcd.h](https://github.com/marekcrn/digital-electronics-2/blob/main/labs/project2/project2/lib/lcd/lcd.h), [lcd_definitions.h](https://github.com/marekcrn/digital-electronics-2/blob/main/labs/project2/project2/lib/lcd/lcd_definitions.h)
-4. **Source:** [main.c](https://github.com/marekcrn/digital-electronics-2/blob/main/labs/project2/project2/src/main.c)
+1. **Timer:** [timer.h](https://github.com/marekcrn/digital-electronics-2/blob/main/labs/projekt2/projekt2/include/timer.h)
+2. **Gpio:** [gpio.c](https://github.com/marekcrn/digital-electronics-2/blob/main/labs/projekt2/projekt2/lib/gpio/gpio.c), [gpio.h](https://github.com/marekcrn/digital-electronics-2/blob/main/labs/projekt2/projekt2/lib/gpio/gpio.h)
+3. **LCD:** [lcd.c](https://github.com/marekcrn/digital-electronics-2/blob/main/labs/projekt2/projekt2/lib/lcd/lcd.c), [lcd.h](https://github.com/marekcrn/digital-electronics-2/blob/main/labs/projekt2/projekt2/lib/lcd/lcd.h), [lcd_definitions.h](https://github.com/marekcrn/digital-electronics-2/blob/main/labs/projekt2/projekt2/lib/lcd/lcd_definitions.h)
+4. **Source:** [main.c](https://github.com/marekcrn/digital-electronics-2/blob/main/labs/projekt2/projekt2/src/main.c)
 
 ## Video
 
